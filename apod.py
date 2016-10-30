@@ -48,3 +48,34 @@ def show_entries():
     cur.execute('SELECT title, date::date, text FROM apod ORDER BY date DESC LIMIT 10')
     entries = cur.fetchall()
     return render_template('show_entries.html', entries=entries)
+
+@app.route('/search', methods=['GET'])
+def search():
+    db = get_db()
+    cur = db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    search_type = request.args['type']
+    order = request.args['order']
+
+    if search_type == 'simple':
+        if order == 'rank':
+            query = ("SELECT title, date, ts_headline('apod_conf', text, q) AS text "
+                    " FROM (SELECT title, date::date, text, q "
+                    "       FROM apod, to_tsquery('apod_conf', %s) AS q "
+                    "       WHERE fts @@ q "
+                    "       ORDER BY ts_rank_cd(fts, q) DESC "
+                    "       LIMIT 10) AS entries")
+        else:
+            query = ("SELECT title, date, ts_headline('apod_conf', text, q) AS text "
+                    " FROM (SELECT title, date::date, text, q "
+                    "       FROM apod, to_tsquery('apod_conf', %s) AS q "
+                    "       WHERE fts @@ q "
+                    "       ORDER BY date DESC "
+                    "       LIMIT 10) AS entries")
+
+    cur.execute(query, [request.args['pattern']])
+    entries = cur.fetchall()
+    return render_template(
+        'show_entries.html',
+        entries=entries,
+        pattern=request.args['pattern'])

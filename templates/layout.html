@@ -3,5 +3,19 @@
 <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
 <div class=page>
   <h1>Astronomy Picture of the Day (APOD)</h1>
+
+  <div class=search>
+    <form name="search" method="GET" action="{{ url_for('search') }}">
+      <input type="text" name="pattern" value="{{ pattern }}"></input>
+      <input type="submit" value="Search"></input>
+      <div class=search_type>
+        <input type="radio" name="type" value="simple" checked>Without index</input>
+      </div>
+      <div class=search_type>
+        <input type="radio" name="order" value="rank" checked>By rank</input>
+        <input type="radio" name="order" value="date">By date</input>
+      </div>
+    </form>
+  </div>
   {% block body %}{% endblock %}
 </div>
