@@ -61,14 +61,29 @@ def search():
         if order == 'rank':
             query = ("SELECT title, date, ts_headline('apod_conf', text, q) AS text "
                     " FROM (SELECT title, date::date, text, q "
-                    "       FROM apod, to_tsquery('apod_conf', %s) AS q "
+                    "       FROM apod, plainto_tsquery('apod_conf', %s) AS q "
                     "       WHERE fts @@ q "
                     "       ORDER BY ts_rank_cd(fts, q) DESC "
                     "       LIMIT 10) AS entries")
         else:
             query = ("SELECT title, date, ts_headline('apod_conf', text, q) AS text "
                     " FROM (SELECT title, date::date, text, q "
-                    "       FROM apod, to_tsquery('apod_conf', %s) AS q "
+                    "       FROM apod, plainto_tsquery('apod_conf', %s) AS q "
+                    "       WHERE fts @@ q "
+                    "       ORDER BY date DESC "
+                    "       LIMIT 10) AS entries")
+    else:
+        if order == 'rank':
+            query = ("SELECT title, date, ts_headline('apod_conf', text, q) AS text "
+                    " FROM (SELECT title, date::date, text, q "
+                    "       FROM apod, plainto_tsquery('apod_conf', %s) AS q "
+                    "       WHERE fts @@ q "
+                    "       ORDER BY fts <=> q "
+                    "       LIMIT 10) AS entries")
+        else:
+            query = ("SELECT title, date, ts_headline('apod_conf', text, q) AS text "
+                    " FROM (SELECT title, date::date, text, q "
+                    "       FROM apod, plainto_tsquery('apod_conf', %s) AS q "
                     "       WHERE fts @@ q "
                     "       ORDER BY date DESC "
                     "       LIMIT 10) AS entries")
