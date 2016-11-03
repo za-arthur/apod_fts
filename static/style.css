@@ -20,3 +20,9 @@ h2              { font-size: 1.2em; }
 .search         { margin: 1em auto; }
 .search input[type=text] { width: 35em; }
 .search_type    { margin: 0.5em auto; font-size: 0.8em; }
+
+.search_type > div { display: inline-block; vertical-align: top; }
+
+#query_text     { border: 2px solid #ccc; margin: 0.8em auto;
+                  padding: 0.4em; background: #eee;
+                  font-family: monospace; }

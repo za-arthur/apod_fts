@@ -1,5 +1,6 @@
 <!doctype html>
 <title>Astronomy Picture of the Day (APOD)</title>
+<script type=text/javascript src="{{ url_for('static', filename='jquery-3.1.1.slim.min.js') }}"></script>
 <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
 <div class=page>
   <h1>Astronomy Picture of the Day (APOD)</h1>
@@ -9,14 +10,37 @@
       <input type="text" name="pattern" value="{{ pattern }}"></input>
       <input type="submit" value="Search"></input>
       <div class=search_type>
-        <input type="radio" name="type" value="simple" checked>Without index</input>
-        <input type="radio" name="type" value="rum">With RUM</input>
-      </div>
-      <div class=search_type>
-        <input type="radio" name="order" value="rank" checked>By rank</input>
-        <input type="radio" name="order" value="date">By date</input>
+        <div><b>Order by:</b></div>
+        <div>
+          <div>
+            <input type="radio" name="order" value="rank" checked>By rank</input>
+            <select name="rank_func">
+              <option selected value="ts_rank">ts_rank()</option>
+              <option value="ts_rank_cd">ts_rank_cd()</option>
+              <option value="ts_score">ts_score()</option>
+            </select>
+          </div>
+          <input type="radio" name="order" value="date">By date</input>
+        </div>
       </div>
     </form>
+
+    {% if query_time %}
+    <p class=search_type><b>Time: </b> {{ query_time }}</p>
+    {% endif %}
+
+    {% if query_text %}
+    <button id="query_button">Show query</button>
+    <div id="query_text" style="display: none">
+    {{ query_text|safe }}
+    </div>
+    <script>
+    $("#query_button").click(function() {
+      $("#query_text").toggle("slow");
+    });
+    </script>
+    {% endif %}
+
   </div>
   {% block body %}{% endblock %}
 </div>
