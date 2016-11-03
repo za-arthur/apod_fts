@@ -13,34 +13,19 @@
         <div><b>Order by:</b></div>
         <div>
           <div>
-            <input type="radio" name="order" value="rank" checked>By rank</input>
+            <input type="radio" name="order" value="rank" {% if order == 'rank' or order is not defined %}checked{% endif %}>By rank</input>
             <select name="rank_func">
-              <option selected value="ts_rank">ts_rank()</option>
-              <option value="ts_rank_cd">ts_rank_cd()</option>
-              <option value="ts_score">ts_score()</option>
+              <option value="ts_rank" {% if rank_func == 'ts_rank' %}selected{% endif %}>ts_rank()</option>
+              <option value="ts_rank_cd" {% if rank_func == 'ts_rank_cd' %}selected{% endif %}>ts_rank_cd()</option>
+              <option value="ts_score" {% if rank_func == 'ts_score' %}selected{% endif %}>ts_score()</option>
             </select>
           </div>
-          <input type="radio" name="order" value="date">By date</input>
+          <input type="radio" name="order" value="date" {% if order == 'date' %}checked{% endif %}>By date</input>
         </div>
+        <br>
+        <input type="checkbox" name="faceted" {% if faceted == 'on' %}checked{% endif %}>Faceted search</input>
       </div>
     </form>
-
-    {% if query_time %}
-    <p class=search_type><b>Time: </b> {{ query_time }}</p>
-    {% endif %}
-
-    {% if query_text %}
-    <button id="query_button">Show query</button>
-    <div id="query_text" style="display: none">
-    {{ query_text|safe }}
-    </div>
-    <script>
-    $("#query_button").click(function() {
-      $("#query_text").toggle("slow");
-    });
-    </script>
-    {% endif %}
-
   </div>
   {% block body %}{% endblock %}
 </div>

@@ -1,13 +1,46 @@
 {% extends "layout.html" %}
 {% block body %}
+  {% if query_time %}
+    <p class=search_type><b>Time: </b> {{ query_time }}</p>
+  {% endif %}
+
+  {% if query_text %}
+    <button id="query_button">Show query</button>
+    <div id="query_text" style="display: none">
+    {{ query_text|safe }}
+    </div>
+    <script>
+    $("#query_button").click(function() {
+      $("#query_text").toggle("slow");
+    });
+    </script>
+  {% endif %}
+
   <ul class=entries>
-  {% for entry in entries %}
-    <li><h2><a href="{{ url_for('show_apod', apod_id=entry.msg_id) }}">{{ entry.title }}</a></h2>
-    <small><b>{{ entry.date }}</b></small><br>
-    {{ entry.text|safe }}
-    </li>
-  {% else %}
-    <li><em>No entries here.</em></li>
-  {% endfor %}
+    {% if faceted %}
+    {% for key, value in entries.items() %}
+      <li>
+        <h1>{{ key }}</h1>
+        <small><b>Result count: {{ value['count'] }}</b></small>
+        <ul class="entries faceted">
+          {% for results in value['results'] %}
+          <h2><a href="{{ url_for('show_apod', apod_id=results['msg_id']) }}">{{ results['title'] }}</a></h2>
+          {% endfor %}
+        </ul>
+      </li>
+    {% else %}
+      <li><em>No entries here.</em></li>
+    {% endfor %}
+    {% else %}
+    {% for entry in entries %}
+      <li>
+        <h2><a href="{{ url_for('show_apod', apod_id=entry.msg_id) }}">{{ entry.title }}</a></h2>
+        <small><b>{{ entry.date }}</b></small><br>
+        {{ entry.text|safe }}
+      </li>
+    {% else %}
+      <li><em>No entries here.</em></li>
+    {% endfor %}
+    {% endif %}
   </ul>
 {% endblock %}

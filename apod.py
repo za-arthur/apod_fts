@@ -56,35 +56,57 @@ def search():
     cur = db.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     order = request.args['order']
+    faceted = None
+    rank_func = None
 
     # Prepare the query
     if order == 'rank':
         rank_func = request.args['rank_func']
+        if 'faceted' in request.args:
+            faceted = request.args['faceted']
 
-        if rank_func == 'ts_rank':
-            query = ("SELECT msg_id, title, date, ts_headline('apod_conf', text, "
-                "        to_tsquery('apod_conf', %(pat)s)) AS text \n"
-                " FROM (SELECT msg_id, title, date::date, text \n"
-                "       FROM apod \n"
-                "       WHERE fts @@ to_tsquery('apod_conf', %(pat)s) \n"
-                "       ORDER BY ts_rank(fts, to_tsquery('apod_conf', %(pat)s)) DESC \n"
-                "       LIMIT 10) AS entries")
-        elif rank_func == 'ts_rank_cd':
-            query = ("SELECT msg_id, title, date, ts_headline('apod_conf', text, "
-                "        to_tsquery('apod_conf', %(pat)s)) AS text \n"
-                " FROM (SELECT msg_id, title, date::date, text \n"
-                "       FROM apod \n"
-                "       WHERE fts @@ to_tsquery('apod_conf', %(pat)s) \n"
-                "       ORDER BY ts_rank_cd(fts, to_tsquery('apod_conf', %(pat)s)) DESC \n"
-                "       LIMIT 10) AS entries")
+        if faceted:
+            query = ("WITH ap AS (SELECT \n"
+                    "   msg_id, \n"
+                    "   COALESCE(title, '') AS title, \n"
+                    "   name, \n"
+                    "   RANK() OVER ( \n"
+                    "     PARTITION BY name \n"
+                    "     ORDER BY {0} \n"
+                    "     ) AS rank, \n"
+                    "   COUNT(*) OVER (PARTITION BY name) cnt \n"
+                    "   FROM apod \n"
+                    "   LEFT JOIN sections AS sects on sect_id = ANY(apod.sections) \n"
+                    "   WHERE fts @@ to_tsquery('apod_conf', %(pat)s)), \n"
+                    " lst AS (SELECT \n"
+                    "   name, \n"
+                    "   jsonb_build_object(\n"
+                    "     'count', cnt, \n"
+                    "     'results', jsonb_agg(\n"
+                    "       jsonb_build_object(\n"
+                    "         'msg_id', msg_id, \n"
+                    "         'title', title \n"
+                    "   ))) as data \n"
+                    "  FROM ap \n"
+                    "  WHERE rank <= 10 AND cnt > 0 \n"
+                    "  GROUP BY name, cnt) \n"
+                    " SELECT jsonb_object_agg(COALESCE(name, 'Without section'), data) \n"
+                    " FROM lst \n")
         else:
             query = ("SELECT msg_id, title, date, ts_headline('apod_conf', text, "
-                "        to_tsquery('apod_conf', %(pat)s)) AS text \n"
-                " FROM (SELECT msg_id, title, date::date, text \n"
-                "       FROM apod \n"
-                "       WHERE fts @@ to_tsquery('apod_conf', %(pat)s) \n"
-                "       ORDER BY fts <=> to_tsquery('apod_conf', %(pat)s) \n"
-                "       LIMIT 10) AS entries")
+                    "        to_tsquery('apod_conf', %(pat)s)) AS text \n"
+                    " FROM (SELECT msg_id, title, date::date, text \n"
+                    "       FROM apod \n"
+                    "       WHERE fts @@ to_tsquery('apod_conf', %(pat)s) \n"
+                    "       ORDER BY {0} \n"
+                    "       LIMIT 10) AS entries")
+
+        if rank_func == 'ts_rank':
+            query = query.format("ts_rank(fts, to_tsquery('apod_conf', %(pat)s)) DESC")
+        elif rank_func == 'ts_rank_cd':
+            query = query.format("ts_rank_cd(fts, to_tsquery('apod_conf', %(pat)s)) DESC")
+        else:
+            query = query.format("fts <=> to_tsquery('apod_conf', %(pat)s)")
     else:
         query = ("SELECT msg_id, title, date, ts_headline('apod_conf', text, "
                 "        to_tsquery('apod_conf', %(pat)s)) AS text \n"
@@ -103,9 +125,16 @@ def search():
     cur.execute(query, {"pat": request.args['pattern']})
     query_time = "%0.2f" % ((time.time() - starttime) * 1000)
 
-    entries = cur.fetchall()
+    if faceted:
+        entries = cur.fetchone()[0]
+    else:
+        entries = cur.fetchall()
+
     return render_template(
         'show_apods.html',
+        order=order,
+        rank_func=rank_func,
+        faceted=faceted,
         entries=entries,
         pattern=request.args['pattern'],
         query_text=query_text,
