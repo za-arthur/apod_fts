@@ -6,9 +6,11 @@
 
   {% if query_text %}
     <button id="query_button">Show query</button>
-    <div id="query_text" style="display: none">
-    {{ query_text|safe }}
-    </div>
+    <pre id="query_text" style="display: none" class="language-sql">
+      <code>
+{{ query_text|safe }}
+      </code>
+    </pre>
     <script>
     $("#query_button").click(function() {
       $("#query_text").toggle("slow");

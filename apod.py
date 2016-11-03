@@ -93,8 +93,8 @@ def search():
                     " SELECT jsonb_object_agg(COALESCE(name, 'Without section'), data) \n"
                     " FROM lst \n")
         else:
-            query = ("SELECT msg_id, title, date, ts_headline('apod_conf', text, "
-                    "        to_tsquery('apod_conf', %(pat)s)) AS text \n"
+            query = ("SELECT msg_id, title, date, ts_headline('apod_conf', text,"
+                    " to_tsquery('apod_conf', %(pat)s)) AS text \n"
                     " FROM (SELECT msg_id, title, date::date, text \n"
                     "       FROM apod \n"
                     "       WHERE fts @@ to_tsquery('apod_conf', %(pat)s) \n"
@@ -108,8 +108,8 @@ def search():
         else:
             query = query.format("fts <=> to_tsquery('apod_conf', %(pat)s)")
     else:
-        query = ("SELECT msg_id, title, date, ts_headline('apod_conf', text, "
-                "        to_tsquery('apod_conf', %(pat)s)) AS text \n"
+        query = ("SELECT msg_id, title, date, ts_headline('apod_conf', text,"
+                " to_tsquery('apod_conf', %(pat)s)) AS text \n"
                 " FROM (SELECT msg_id, title, date::date, text \n"
                 "       FROM apod \n"
                 "       WHERE fts @@ to_tsquery('apod_conf', %(pat)s) \n"
@@ -118,7 +118,7 @@ def search():
 
     # Prepare the query to show to user
     query_text = query % {"pat": "'%s'" % (request.args['pattern'])}
-    query_text = query_text.replace("\n", "<br>")
+    # query_text = query_text.replace("\n", "<br>")
 
     # Show time to user
     starttime = time.time()
