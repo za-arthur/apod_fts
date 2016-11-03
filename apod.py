@@ -72,7 +72,7 @@ def search():
                     "   name, \n"
                     "   RANK() OVER ( \n"
                     "     PARTITION BY name \n"
-                    "     ORDER BY {0} \n"
+                    "     ORDER BY {0}, msg_id \n"
                     "     ) AS rank, \n"
                     "   COUNT(*) OVER (PARTITION BY name) cnt \n"
                     "   FROM apod \n"
