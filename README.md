@@ -1,3 +1,5 @@
+![Postgres Professional](PGpro-logo.png)
+
 # apod_fts
 PostgreSQL full text search example
 

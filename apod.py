@@ -119,7 +119,6 @@ def search():
 
     # Prepare the query to show to user
     query_text = query % {"pat": "'%s'" % (request.args['pattern'])}
-    # query_text = query_text.replace("\n", "<br>")
 
     # Show time to user
     starttime = time.time()
