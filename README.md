@@ -1,4 +1,4 @@
-![Postgres Professional](PGpro-logo.png)
+[![Postgres Professional](PGpro-logo.png)](https://postgrespro.com/)
 
 # apod_fts
 PostgreSQL full text search example
