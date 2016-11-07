@@ -69,6 +69,7 @@ def search():
             query = ("WITH ap AS (SELECT \n"
                     "   msg_id, \n"
                     "   COALESCE(title, '') AS title, \n"
+                    "   lang, \n"
                     "   name, \n"
                     "   RANK() OVER ( \n"
                     "       PARTITION BY name \n"
@@ -86,7 +87,8 @@ def search():
                     "     'results', jsonb_agg(\n"
                     "       jsonb_build_object(\n"
                     "         'msg_id', msg_id, \n"
-                    "         'title', title \n"
+                    "         'title', title, \n"
+                    "         'lang', lang \n"
                     "   ))) AS data \n"
                     "   FROM ap \n"
                     "   WHERE rank <= 10 AND cnt > 0 \n"
@@ -94,9 +96,9 @@ def search():
                     " SELECT jsonb_object_agg(COALESCE(name, 'Without section'), data) \n"
                     " FROM lst \n")
         else:
-            query = ("SELECT msg_id, title, date, ts_headline('apod_conf', text,"
-                    " to_tsquery('apod_conf', %(pat)s)) AS text \n"
-                    " FROM (SELECT msg_id, title, date::date, text \n"
+            query = ("SELECT msg_id, title, lang, date, \n"
+                    "  ts_headline('apod_conf', text, to_tsquery('apod_conf', %(pat)s)) AS text \n"
+                    " FROM (SELECT msg_id, title, lang, date::date, text \n"
                     "       FROM apod \n"
                     "       WHERE fts @@ to_tsquery('apod_conf', %(pat)s) \n"
                     "       ORDER BY {0} \n"
@@ -109,9 +111,9 @@ def search():
         else:
             query = query.format("fts <=> to_tsquery('apod_conf', %(pat)s)")
     else:
-        query = ("SELECT msg_id, title, date, ts_headline('apod_conf', text,"
-                " to_tsquery('apod_conf', %(pat)s)) AS text \n"
-                " FROM (SELECT msg_id, title, date::date, text \n"
+        query = ("SELECT msg_id, title, lang, date, \n"
+                "  ts_headline('apod_conf', text, to_tsquery('apod_conf', %(pat)s)) AS text \n"
+                " FROM (SELECT msg_id, title, lang, date::date, text \n"
                 "       FROM apod \n"
                 "       WHERE fts @@ to_tsquery('apod_conf', %(pat)s) \n"
                 "       ORDER BY date DESC \n"
@@ -127,8 +129,18 @@ def search():
 
     if faceted:
         entries = cur.fetchone()[0]
+        no_entries = entries == None
     else:
         entries = cur.fetchall()
+        no_entries = cur.rowcount == 0
+
+    # There is no result. So show hints to user
+    if no_entries:
+        query = ("SELECT word FROM words WHERE word %% %s")
+        cur.execute(query, [request.args['pattern']])
+        hints = cur.fetchall()
+    else:
+        hints = None
 
     return render_template(
         'show_apods.html',
@@ -136,19 +148,23 @@ def search():
         rank_func=rank_func,
         faceted=faceted,
         entries=entries,
+        hints=hints,
         pattern=request.args['pattern'],
         query_text=query_text,
         query_time=query_time)
 
-@app.route('/apod/<int:apod_id>')
-def show_apod(apod_id):
+@app.route('/apod/<int:apod_id>/<lang>')
+def show_apod(apod_id, lang):
     db = get_db()
     cur = db.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     query = ("SELECT title, date::date, text "
-            " FROM apod WHERE msg_id = %s")
+            " FROM apod WHERE msg_id = %s AND lang = %s")
 
-    cur.execute(query, [apod_id])
+    cur.execute(query, [apod_id, lang])
+
+    if cur.rowcount == 0:
+        abort(404)
 
     entry = cur.fetchone()
     return render_template(
