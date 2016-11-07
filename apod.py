@@ -60,49 +60,50 @@ def search():
     rank_func = None
 
     # Prepare the query
+    if 'faceted' in request.args:
+        faceted = request.args['faceted']
+
+    if faceted:
+        query = ("WITH ap AS (SELECT \n"
+                "   msg_id, \n"
+                "   COALESCE(title, '') AS title, \n"
+                "   lang, \n"
+                "   name, \n"
+                "   RANK() OVER ( \n"
+                "       PARTITION BY name \n"
+                "       ORDER BY {0}, msg_id \n"
+                "   ) AS rank, \n"
+                "   COUNT(*) OVER (PARTITION BY name) cnt \n"
+                "   FROM apod \n"
+                "   LEFT JOIN sections AS sects on sect_id = ANY(apod.sections) \n"
+                "   WHERE fts @@ to_tsquery('apod_conf', %(pat)s)\n"
+                " ),\n"
+                " lst AS (SELECT \n"
+                "   name, \n"
+                "   jsonb_build_object(\n"
+                "     'count', cnt, \n"
+                "     'results', jsonb_agg(\n"
+                "       jsonb_build_object(\n"
+                "         'msg_id', msg_id, \n"
+                "         'title', title, \n"
+                "         'lang', lang \n"
+                "   ))) AS data \n"
+                "   FROM ap \n"
+                "   WHERE rank <= 10 AND cnt > 0 \n"
+                "   GROUP BY name, cnt) \n"
+                " SELECT jsonb_object_agg(COALESCE(name, 'Without section'), data) \n"
+                " FROM lst \n")
+    else:
+        query = ("SELECT msg_id, title, lang, date, \n"
+                "  ts_headline('apod_conf', text, to_tsquery('apod_conf', %(pat)s)) AS text \n"
+                " FROM (SELECT msg_id, title, lang, date::date, text \n"
+                "       FROM apod \n"
+                "       WHERE fts @@ to_tsquery('apod_conf', %(pat)s) \n"
+                "       ORDER BY {0} \n"
+                "       LIMIT 10) AS entries")
+
     if order == 'rank':
         rank_func = request.args['rank_func']
-        if 'faceted' in request.args:
-            faceted = request.args['faceted']
-
-        if faceted:
-            query = ("WITH ap AS (SELECT \n"
-                    "   msg_id, \n"
-                    "   COALESCE(title, '') AS title, \n"
-                    "   lang, \n"
-                    "   name, \n"
-                    "   RANK() OVER ( \n"
-                    "       PARTITION BY name \n"
-                    "       ORDER BY {0}, msg_id \n"
-                    "   ) AS rank, \n"
-                    "   COUNT(*) OVER (PARTITION BY name) cnt \n"
-                    "   FROM apod \n"
-                    "   LEFT JOIN sections AS sects on sect_id = ANY(apod.sections) \n"
-                    "   WHERE fts @@ to_tsquery('apod_conf', %(pat)s)\n"
-                    " ),\n"
-                    " lst AS (SELECT \n"
-                    "   name, \n"
-                    "   jsonb_build_object(\n"
-                    "     'count', cnt, \n"
-                    "     'results', jsonb_agg(\n"
-                    "       jsonb_build_object(\n"
-                    "         'msg_id', msg_id, \n"
-                    "         'title', title, \n"
-                    "         'lang', lang \n"
-                    "   ))) AS data \n"
-                    "   FROM ap \n"
-                    "   WHERE rank <= 10 AND cnt > 0 \n"
-                    "   GROUP BY name, cnt) \n"
-                    " SELECT jsonb_object_agg(COALESCE(name, 'Without section'), data) \n"
-                    " FROM lst \n")
-        else:
-            query = ("SELECT msg_id, title, lang, date, \n"
-                    "  ts_headline('apod_conf', text, to_tsquery('apod_conf', %(pat)s)) AS text \n"
-                    " FROM (SELECT msg_id, title, lang, date::date, text \n"
-                    "       FROM apod \n"
-                    "       WHERE fts @@ to_tsquery('apod_conf', %(pat)s) \n"
-                    "       ORDER BY {0} \n"
-                    "       LIMIT 10) AS entries")
 
         if rank_func == 'ts_rank':
             query = query.format("ts_rank(fts, to_tsquery('apod_conf', %(pat)s)) DESC")
@@ -111,13 +112,7 @@ def search():
         else:
             query = query.format("fts <=> to_tsquery('apod_conf', %(pat)s)")
     else:
-        query = ("SELECT msg_id, title, lang, date, \n"
-                "  ts_headline('apod_conf', text, to_tsquery('apod_conf', %(pat)s)) AS text \n"
-                " FROM (SELECT msg_id, title, lang, date::date, text \n"
-                "       FROM apod \n"
-                "       WHERE fts @@ to_tsquery('apod_conf', %(pat)s) \n"
-                "       ORDER BY date DESC \n"
-                "       LIMIT 10) AS entries")
+        query = query.format("date DESC")
 
     # Prepare the query to show to user
     query_text = query % {"pat": "'%s'" % (request.args['pattern'])}
