@@ -3,6 +3,7 @@ import os
 import time
 import psycopg2
 import psycopg2.extras
+from psycopg2 import ProgrammingError
 from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash
 
@@ -117,25 +118,31 @@ def search():
     # Prepare the query to show to user
     query_text = query % {"pat": "'%s'" % (request.args['pattern'])}
 
-    # Show time to user
-    starttime = time.time()
-    cur.execute(query, {"pat": request.args['pattern']})
-    query_time = "%0.2f" % ((time.time() - starttime) * 1000)
+    entries = None
+    hints = None
+    error = None
+    query_time = None
 
-    if faceted:
-        entries = cur.fetchone()[0]
-        no_entries = entries == None
-    else:
-        entries = cur.fetchall()
-        no_entries = cur.rowcount == 0
+    try:
+        # Show time to user
+        starttime = time.time()
+        cur.execute(query, {"pat": request.args['pattern']})
+        query_time = "%0.2f" % ((time.time() - starttime) * 1000)
 
-    # There is no result. So show hints to user
-    if no_entries:
-        query = ("SELECT word FROM words WHERE word %% %s")
-        cur.execute(query, [request.args['pattern']])
-        hints = cur.fetchall()
-    else:
-        hints = None
+        if faceted:
+            entries = cur.fetchone()[0]
+            no_entries = entries == None
+        else:
+            entries = cur.fetchall()
+            no_entries = cur.rowcount == 0
+
+        # There is no result. So show hints to user
+        if no_entries:
+            query = ("SELECT word FROM words WHERE word %% %s")
+            cur.execute(query, [request.args['pattern']])
+            hints = cur.fetchall()
+    except ProgrammingError as e:
+        error = e.pgerror
 
     return render_template(
         'show_apods.html',
@@ -144,6 +151,7 @@ def search():
         faceted=faceted,
         entries=entries,
         hints=hints,
+        error=error,
         pattern=request.args['pattern'],
         query_text=query_text,
         query_time=query_time)

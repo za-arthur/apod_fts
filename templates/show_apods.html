@@ -19,54 +19,58 @@
   {% endif %}
 
   <ul class=entries>
-    {% if faceted %}
-    {% if entries %}
-      {% for key, value in entries.items() %}
-        <li>
-          <h1>{{ key }}</h1>
-          <small><b>Result count: {{ value['count'] }}</b></small>
-          <ul class="entries faceted">
-            {% for results in value['results'] %}
-            <li><h2><a href="{{ url_for('show_apod', apod_id=results['msg_id'], lang=results['lang']) }}">{{ results['title'] }}</a></h2></li>
-            {% endfor %}
-          </ul>
-        </li>
-      {% endfor %}
+    {% if error %}
+      <li><em>{{ error }}</em></li>
     {% else %}
-      {% if hints|length > 0 %}
-      <li>
-        <em>Maybe you mean:</em>
-        <ul class=entries>
-          {% for hint in hints %}
-          <li><b>{{ hint.word }}</b></li>
+      {% if faceted %}
+        {% if entries %}
+          {% for key, value in entries.items() %}
+            <li>
+              <h1>{{ key }}</h1>
+              <small><b>Result count: {{ value['count'] }}</b></small>
+              <ul class="entries faceted">
+                {% for results in value['results'] %}
+                <li><h2><a href="{{ url_for('show_apod', apod_id=results['msg_id'], lang=results['lang']) }}">{{ results['title'] }}</a></h2></li>
+                {% endfor %}
+              </ul>
+            </li>
           {% endfor %}
-        </ul>
-      </li>
+        {% else %}
+          {% if hints|length > 0 %}
+          <li>
+            <em>Maybe you mean:</em>
+            <ul class=entries>
+              {% for hint in hints %}
+              <li><b>{{ hint.word }}</b></li>
+              {% endfor %}
+            </ul>
+          </li>
+          {% else %}
+          <li><em>No entries here.</em></li>
+          {% endif %}
+        {% endif %}
       {% else %}
-      <li><em>No entries here.</em></li>
+        {% for entry in entries %}
+          <li>
+            <h2><a href="{{ url_for('show_apod', apod_id=entry.msg_id, lang=entry.lang) }}">{{ entry.title }}</a></h2>
+            <small><b>{{ entry.date }}</b></small><br>
+            {{ entry.text|safe }}
+          </li>
+        {% else %}
+          {% if hints|length > 0 %}
+          <li>
+            <em>Maybe you mean:</em>
+            <ul class=entries>
+              {% for hint in hints %}
+              <li><b>{{ hint.word }}</b></li>
+              {% endfor %}
+            </ul>
+          </li>
+          {% else %}
+          <li><em>No entries here.</em></li>
+          {% endif %}
+        {% endfor %}
       {% endif %}
-    {% endif %}
-    {% else %}
-    {% for entry in entries %}
-      <li>
-        <h2><a href="{{ url_for('show_apod', apod_id=entry.msg_id, lang=entry.lang) }}">{{ entry.title }}</a></h2>
-        <small><b>{{ entry.date }}</b></small><br>
-        {{ entry.text|safe }}
-      </li>
-    {% else %}
-      {% if hints|length > 0 %}
-      <li>
-        <em>Maybe you mean:</em>
-        <ul class=entries>
-          {% for hint in hints %}
-          <li><b>{{ hint.word }}</b></li>
-          {% endfor %}
-        </ul>
-      </li>
-      {% else %}
-      <li><em>No entries here.</em></li>
-      {% endif %}
-    {% endfor %}
     {% endif %}
   </ul>
 {% endblock %}
