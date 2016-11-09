@@ -47,7 +47,7 @@ def show_entries():
     db = get_db()
     cur = db.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-    cur.execute('SELECT msg_id, title, date::date, text FROM apod ORDER BY date DESC LIMIT 10')
+    cur.execute('SELECT msg_id, title, lang, date::date, text FROM apod ORDER BY date DESC LIMIT 10')
     entries = cur.fetchall()
     return render_template('show_apods.html', entries=entries)
 
