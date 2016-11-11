@@ -6,6 +6,9 @@
 <link rel=stylesheet type=text/css href="{{ url_for('static', filename='prism.css') }}">
 <div class=page>
   <h1>Astronomy Picture of the Day (APOD)</h1>
+  <a href="https://github.com/select-artur/apod_fts">
+    <img src="{{ url_for('static', filename='github.png') }}">
+  </a>
 
   <div class=search>
     <form name="search" method="GET" action="{{ url_for('search') }}">

@@ -1,7 +1,7 @@
-[![Postgres Professional](PGpro-logo.png)](https://postgrespro.com/)
+[![Postgres Professional](static/PGpro-logo.png)](https://postgrespro.com/)
 
 # apod_fts
-PostgreSQL full text search example
+PostgreSQL full text search example. Site [tsdemo.postgrespro.ru](http://tsdemo.postgrespro.ru/).
 
 # Installing
 `apod_fts` is a web-application written in Python using flask web-framework. To run this application

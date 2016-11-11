@@ -5,7 +5,9 @@ h1              { border-bottom: 2px solid #eee; }
 h2              { font-size: 1.2em; }
 
 .page           { margin: 2em auto; width: 55em; border: 5px solid #ccc;
-                  padding: 0.8em; background: white; }
+                  padding: 0.8em; background: white; position: relative;}
+.page > a       { position: absolute; top: 0.8em; right: 0.8em; }
+
 .entries        { list-style: none; margin: 0; padding: 0; }
 .entries li     { margin: 0.8em 1.2em; }
 .entries li h2  { margin-left: -1em; }
