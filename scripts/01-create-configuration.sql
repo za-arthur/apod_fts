@@ -1,8 +1,13 @@
 -- Create dictionaries modules
 CREATE EXTENSION hunspell_en_us;
 CREATE EXTENSION hunspell_ru_ru;
+CREATE EXTENSION ts_parser;
 
-CREATE TEXT SEARCH CONFIGURATION apod_conf (copy=simple);
+CREATE TEXT SEARCH CONFIGURATION apod_conf (parser=ts_parser);
+ALTER TEXT SEARCH CONFIGURATION apod_conf
+	ADD MAPPING FOR email, file, float, host, hword_numpart, int,
+	numhword, numword, sfloat, uint, url, url_path, version
+	WITH simple;
 ALTER TEXT SEARCH CONFIGURATION apod_conf
 	ALTER MAPPING FOR asciiword, asciihword, hword_asciipart WITH english_hunspell, english_stem;
 ALTER TEXT SEARCH CONFIGURATION apod_conf

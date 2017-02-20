@@ -4,8 +4,8 @@
 
 The **ts_parser** module is the modified default text search parser from
 PostgreSQL 9.6. The differences are:
-* **tsparser** gives unbroken words by underscore character
-* **tsparser** gives unbroken words with numbers and letters by hyphen character
+* **ts_parser** gives unbroken words by underscore character
+* **ts_parser** gives unbroken words with numbers and letters by hyphen character
 
 For example:
 
@@ -50,7 +50,7 @@ After this you can create your own text search configuration:
 
 ```sql
 CREATE TEXT SEARCH CONFIGURATION english_ts (
-    PARSER = tsparser
+    PARSER = ts_parser
 );
 
 COMMENT ON TEXT SEARCH CONFIGURATION english_ts IS 'text search configuration for english language';
