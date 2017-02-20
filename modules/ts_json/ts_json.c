@@ -14,6 +14,7 @@
 #include "utils/builtins.h"
 #include "utils/jsonapi.h"
 #include "utils/jsonb.h"
+#include "utils/numeric.h"
 
 PG_MODULE_MAGIC;
 
@@ -31,7 +32,10 @@ typedef struct JsonValuesState
 	int			delim_length;
 } JsonValuesState;
 
-static void json_values_scalar(void *pstate, char *token, JsonTokenType tokentype);
+static void append_jsonb_value(JsonValuesState *state,
+							   const char *str, int len);
+static void json_values_scalar(void *pstate, char *token,
+							   JsonTokenType tokentype);
 
 /*
  * Extract all values from json.
@@ -83,11 +87,7 @@ Datum
 jsonb_values(PG_FUNCTION_ARGS)
 {
 	Jsonb	   *jsonb;
-	char	   *delim;
-	int			delim_length = 0;
-	text	   *res;
-	int			length = 0,
-				allocated = 0;
+	JsonValuesState state;
 	JsonbIterator *it;
 	JsonbValue	v;
 	JsonbIteratorToken r;
@@ -96,13 +96,14 @@ jsonb_values(PG_FUNCTION_ARGS)
 		PG_RETURN_NULL();
 
 	jsonb = PG_GETARG_JSONB(0);
+	memset(&state, 0, sizeof(state));
 
 	if (!PG_ARGISNULL(1))
 	{
 		text	   *delim_t = PG_GETARG_TEXT_P(1);
 
-		delim = VARDATA(delim_t);
-		delim_length = VARSIZE(delim_t) - VARHDRSZ;
+		state.delim = VARDATA(delim_t);
+		state.delim_length = VARSIZE(delim_t) - VARHDRSZ;
 	}
 
 	it = JsonbIteratorInit(&jsonb->root);
@@ -113,45 +114,78 @@ jsonb_values(PG_FUNCTION_ARGS)
 			(v.type == jbvString || v.type == jbvNull || v.type == jbvNumeric ||
 			 v.type == jbvBool))
 		{
-			if (allocated == 0)
+			switch (v.type)
 			{
-				/* Use Max() for long texts */
-				allocated = Max(1024, v.val.string.len * 2);
+				case jbvNull:
+					append_jsonb_value(&state, "null", 4);
+					break;
+				case jbvBool:
+					append_jsonb_value(&state,
+									   v.val.boolean ? "true" : "false",
+									   v.val.boolean ? 4 : 5);
+					break;
+				case jbvNumeric:
+					{
+						char	   *num = numeric_normalize(v.val.numeric);
 
-				res = (text *) palloc(allocated + VARHDRSZ);
-				memcpy(VARDATA(res), v.val.string.val, v.val.string.len);
+						append_jsonb_value(&state, num, strlen(num));
+
+						pfree(num);
+						break;
+					}
+				case jbvString:
+					append_jsonb_value(&state,
+									   v.val.string.val, v.val.string.len);
+					break;
+				default:
+					/* Make compiler quite */
+					break;
 			}
-			else
-			{
-				if (length + v.val.string.len + delim_length > allocated)
-				{
-					/* Use Max() for long texts */
-					allocated = Max(allocated * 2,
-									allocated + v.val.string.len * 2);
-
-					res = (text *) repalloc(res, allocated + VARHDRSZ);
-				}
-
-				if (delim_length)
-				{
-					memcpy(VARDATA(res) + length, delim, delim_length);
-					length += delim_length;
-				}
-
-				memcpy(VARDATA(res) + length,
-					   v.val.string.val, v.val.string.len);
-			}
-
-			length += v.val.string.len;
 		}
 	}
 
-	if (length == 0)
+	if (state.length == 0)
 		PG_RETURN_NULL();
 	{
-		SET_VARSIZE(res, length + VARHDRSZ);
-		PG_RETURN_TEXT_P(res);
+		SET_VARSIZE(state.res, state.length + VARHDRSZ);
+		PG_RETURN_TEXT_P(state.res);
 	}
+}
+
+static void
+append_jsonb_value(JsonValuesState *state, const char *str, int len)
+{
+	if (state->allocated == 0)
+	{
+		/* Use Max() for long texts */
+		state->allocated = Max(1024, len * 2);
+
+		state->res = (text *) palloc(state->allocated + VARHDRSZ);
+		memcpy(VARDATA(state->res), str, len);
+	}
+	else
+	{
+		if (state->length + len + state->delim_length > state->allocated)
+		{
+			/* Use Max() for long texts */
+			state->allocated = Max(state->allocated * 2,
+								   state->allocated + len * 2);
+
+			state->res = (text *) repalloc(state->res,
+										   state->allocated + VARHDRSZ);
+		}
+
+		if (state->delim_length)
+		{
+			memcpy(VARDATA(state->res) + state->length,
+				   state->delim, state->delim_length);
+			state->length += state->delim_length;
+		}
+
+		memcpy(VARDATA(state->res) + state->length, str, len);
+	}
+
+	state->length += len;
 }
 
 static void
@@ -161,11 +195,11 @@ json_values_scalar(void *pstate, char *token, JsonTokenType tokentype)
 	int			len;
 
 	/* We extract only string values */
-	if (tokentype == JSON_TOKEN_STRING ||
-		tokentype == JSON_TOKEN_TRUE ||
-		tokentype == JSON_TOKEN_FALSE ||
-		tokentype == JSON_TOKEN_NULL ||
-		tokentype == JSON_TOKEN_NUMBER)
+	if (tokentype != JSON_TOKEN_STRING &&
+		tokentype != JSON_TOKEN_TRUE &&
+		tokentype != JSON_TOKEN_FALSE &&
+		tokentype != JSON_TOKEN_NULL &&
+		tokentype != JSON_TOKEN_NUMBER)
 		return;
 
 	len = strlen(token);
