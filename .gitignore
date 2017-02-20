@@ -1,4 +1,9 @@
+# Python files
 *.pyc
 *.pyo
 venv
 venv*
+
+# C files
+*.o
+*.so

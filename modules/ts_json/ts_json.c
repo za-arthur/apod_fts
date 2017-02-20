@@ -109,7 +109,9 @@ jsonb_values(PG_FUNCTION_ARGS)
 
 	while ((r = JsonbIteratorNext(&it, &v, false)) != WJB_DONE)
 	{
-		if ((r == WJB_ELEM || r == WJB_VALUE) && v.type == jbvString)
+		if ((r == WJB_ELEM || r == WJB_VALUE) &&
+			(v.type == jbvString || v.type == jbvNull || v.type == jbvNumeric ||
+			 v.type == jbvBool))
 		{
 			if (allocated == 0)
 			{
@@ -159,7 +161,11 @@ json_values_scalar(void *pstate, char *token, JsonTokenType tokentype)
 	int			len;
 
 	/* We extract only string values */
-	if (tokentype != JSON_TOKEN_STRING)
+	if (tokentype == JSON_TOKEN_STRING ||
+		tokentype == JSON_TOKEN_TRUE ||
+		tokentype == JSON_TOKEN_FALSE ||
+		tokentype == JSON_TOKEN_NULL ||
+		tokentype == JSON_TOKEN_NUMBER)
 		return;
 
 	len = strlen(token);
