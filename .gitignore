@@ -7,3 +7,5 @@ venv*
 # C files
 *.o
 *.so
+results/
+
