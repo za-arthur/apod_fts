@@ -15,7 +15,7 @@ you need to install `Flask` and `psycopg2` Python packages.
 It is necessary that PostgreSQL binaries are in PATH environment. To install all text search dictionaries and RUM index you can use scripts in script directory. Use the following commands
 
 ```
-=> cd scripts
+=> cd apod_fts
 => createdb apod
 => psql apod < scripts/apod.dump
 => chmod +x scripts/01-create-configuration.sh

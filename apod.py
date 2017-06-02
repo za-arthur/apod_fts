@@ -4,8 +4,7 @@ import time
 import psycopg2
 import psycopg2.extras
 from psycopg2 import ProgrammingError
-from flask import Flask, request, session, g, redirect, url_for, abort, \
-     render_template, flash
+from flask import Flask, request, g, abort, render_template, escape
 
 # create our apod application
 app = Flask(__name__)
@@ -53,18 +52,18 @@ def show_entries():
 
 @app.route('/search', methods=['GET'])
 def search():
+    if not 'pattern' in request.args:
+        abort(404)
+
     db = get_db()
     cur = db.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-    order = request.args['order']
-    faceted = None
-    rank_func = None
+    order = request.args.get('order')
+    faceted = request.args.get('faceted')
+    rank_func = request.args.get('rank_func')
 
     # Prepare the query
-    if 'faceted' in request.args:
-        faceted = request.args['faceted']
-
-    if faceted:
+    if faceted == 'on':
         query = ("WITH ap AS (SELECT \n"
                 "   msg_id, \n"
                 "   COALESCE(title, '') AS title, \n"
@@ -76,8 +75,9 @@ def search():
                 "   ) AS rank, \n"
                 "   COUNT(*) OVER (PARTITION BY name) cnt \n"
                 "   FROM apod \n"
+                "   CROSS JOIN to_tsquery('apod_conf', %(pat)s) AS ts_q \n"
                 "   LEFT JOIN sections AS sects on sect_id = ANY(apod.sections) \n"
-                "   WHERE fts @@ to_tsquery('apod_conf', %(pat)s)\n"
+                "   WHERE fts @@ ts_q\n"
                 " ),\n"
                 " lst AS (SELECT \n"
                 "   name, \n"
@@ -96,27 +96,25 @@ def search():
                 " FROM lst \n")
     else:
         query = ("SELECT msg_id, title, lang, date, \n"
-                "  ts_headline('apod_conf', text, to_tsquery('apod_conf', %(pat)s)) AS text \n"
-                " FROM (SELECT msg_id, title, lang, date::date, text \n"
-                "       FROM apod \n"
-                "       WHERE fts @@ to_tsquery('apod_conf', %(pat)s) \n"
+                "  ts_headline('apod_conf', text, ts_q) AS text \n"
+                " FROM (SELECT msg_id, title, lang, date::date, text, ts_q \n"
+                "       FROM apod, to_tsquery('apod_conf', %(pat)s) AS ts_q \n"
+                "       WHERE fts @@ ts_q \n"
                 "       ORDER BY {0} \n"
                 "       LIMIT 10) AS entries")
 
     if order == 'rank':
-        rank_func = request.args['rank_func']
-
         if rank_func == 'ts_rank':
-            query = query.format("ts_rank(fts, to_tsquery('apod_conf', %(pat)s)) DESC")
+            query = query.format("ts_rank(fts, ts_q) DESC")
         elif rank_func == 'ts_rank_cd':
-            query = query.format("ts_rank_cd(fts, to_tsquery('apod_conf', %(pat)s)) DESC")
+            query = query.format("ts_rank_cd(fts, ts_q) DESC")
         else:
-            query = query.format("fts <=> to_tsquery('apod_conf', %(pat)s)")
+            query = query.format("fts <=> ts_q")
     else:
         query = query.format("date DESC")
 
-    # Prepare the query to show to user
-    query_text = query % {"pat": "'%s'" % (request.args['pattern'])}
+    # Prepare the query
+    query_text = cur.mogrify(query, {"pat": request.args['pattern']})
 
     entries = None
     hints = None
@@ -126,7 +124,7 @@ def search():
     try:
         # Show time to user
         starttime = time.time()
-        cur.execute(query, {"pat": request.args['pattern']})
+        cur.execute(query_text)
         query_time = "%0.2f" % ((time.time() - starttime) * 1000)
 
         if faceted:
@@ -144,6 +142,8 @@ def search():
     except ProgrammingError as e:
         error = e.pgerror
 
+    query_text = query_text.decode('utf-8')
+
     return render_template(
         'show_apods.html',
         order=order,
@@ -152,8 +152,8 @@ def search():
         entries=entries,
         hints=hints,
         error=error,
-        pattern=request.args['pattern'],
-        query_text=query_text,
+        pattern=escape(request.args['pattern']),
+        query_text=escape(query_text),
         query_time=query_time)
 
 @app.route('/apod/<int:apod_id>/<lang>')
