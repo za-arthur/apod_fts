@@ -3,6 +3,7 @@
 *.pyo
 venv
 venv*
+__pycache__
 
 # C files
 *.o

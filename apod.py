@@ -75,9 +75,8 @@ def search():
                 "   ) AS rank, \n"
                 "   COUNT(*) OVER (PARTITION BY name) cnt \n"
                 "   FROM apod \n"
-                "   CROSS JOIN to_tsquery('apod_conf', %(pat)s) AS ts_q \n"
                 "   LEFT JOIN sections AS sects on sect_id = ANY(apod.sections) \n"
-                "   WHERE fts @@ ts_q\n"
+                "   WHERE fts @@ to_tsquery('apod_conf', %(pat)s) \n"
                 " ),\n"
                 " lst AS (SELECT \n"
                 "   name, \n"
@@ -97,19 +96,20 @@ def search():
     else:
         query = ("SELECT msg_id, title, lang, date, \n"
                 "  ts_headline('apod_conf', text, ts_q) AS text \n"
-                " FROM (SELECT msg_id, title, lang, date::date, text, ts_q \n"
-                "       FROM apod, to_tsquery('apod_conf', %(pat)s) AS ts_q \n"
-                "       WHERE fts @@ ts_q \n"
+                " FROM (SELECT msg_id, title, lang, date::date, text, \n"
+                "       to_tsquery('apod_conf', %(pat)s) AS ts_q \n"
+                "       FROM apod \n"
+                "       WHERE fts @@ to_tsquery('apod_conf', %(pat)s) \n"
                 "       ORDER BY {0} \n"
                 "       LIMIT 10) AS entries")
 
     if order == 'rank':
         if rank_func == 'ts_rank':
-            query = query.format("ts_rank(fts, ts_q) DESC")
+            query = query.format("ts_rank(fts, to_tsquery('apod_conf', %(pat)s)) DESC")
         elif rank_func == 'ts_rank_cd':
-            query = query.format("ts_rank_cd(fts, ts_q) DESC")
+            query = query.format("ts_rank_cd(fts, to_tsquery('apod_conf', %(pat)s)) DESC")
         else:
-            query = query.format("fts <=> ts_q")
+            query = query.format("fts <=> to_tsquery('apod_conf', %(pat)s)")
     else:
         query = query.format("date DESC")
 
